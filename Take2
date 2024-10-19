@@ -1,0 +1,110 @@
+import telebot
+import random
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from datetime import datetime, timedelta
+import os
+
+TOKEN = '7734470980:AAGaC5Ma5tsKiMQf7uuH1mTga2iybgCK15E'
+bot = telebot.TeleBot(TOKEN)
+
+class SlotMachine:
+def init(self):
+self.symbols = ['🍒', '🍋', '🍊', '🔔', '💰']
+self.payouts = {
+'💰💰💰': 1000,
+'🔔🔔🔔': 500,
+'🍒🍒🍒': 250,
+'🍊🍊🍊': 100,
+'🍋🍋🍋': 50
+}
+
+def spin(self):
+    result = random.choices(self.symbols, k=3)
+    winnings = self.calculate_winnings(result)
+    return result, winnings
+
+def calculate_winnings(self, result):
+    result_str = ''.join(result)
+    for pattern, payout in self.payouts.items():
+        if pattern in result_str:
+            return payout
+    return 0
+
+class Player:
+def init(self, user_id):
+self.user_id = user_id
+self.balance = 1000
+self.spins_left = float('inf') # Unlimited spins for this version
+self.last_spin_time = datetime.now()
+
+class GameManager:
+def init(self):
+self.players = {}
+self.leaderboard = []
+
+def get_player(self, user_id):
+    if user_id not in self.players:
+        self.players[user_id] = Player(user_id)
+    return self.players[user_id]
+
+def update_leaderboard(self, user_id, username, balance):
+    self.leaderboard.append((user_id, username, balance))
+    self.leaderboard.sort(key=lambda x: x[2], reverse=True)
+    self.leaderboard = self.leaderboard[:100]
+
+game_manager = GameManager()
+slot_machine = SlotMachine()
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+player = game_manager.get_player(message.from_user.id)
+bot.reply_to(message, f"Welcome to the Slot Machine Game! Your current balance is ${player.balance}. Type /spin to play!")
+
+@bot.message_handler(commands=['spin'])
+def spin_slot_machine(message):
+player = game_manager.get_player(message.from_user.id)
+
+if player.balance < 10:
+    bot.reply_to(message, "You don't have enough balance to spin. Minimum bet is $10.")
+    return
+
+player.balance -= 10
+result, winnings = slot_machine.spin()
+player.balance += winnings
+
+result_message = f"🎰 {' '.join(result)} 🎰\n"
+if winnings > 0:
+    result_message += f"Congratulations! You won ${winnings}!\n"
+else:
+    result_message += "Sorry, no win this time.\n"
+
+result_message += f"Your new balance is ${player.balance}"
+
+bot.reply_to(message, result_message)
+game_manager.update_leaderboard(message.from_user.id, message.from_user.username, player.balance)
+
+@bot.message_handler(commands=['balance'])
+def check_balance(message):
+player = game_manager.get_player(message.from_user.id)
+bot.reply_to(message, f"Your current balance is ${player.balance}")
+
+@bot.message_handler(commands=['leaderboard'])
+def show_leaderboard(message):
+leaderboard_text = "🏆 Top 10 Players 🏆\n\n"
+for i, (user_id, username, balance) in enumerate(game_manager.leaderboard[:10], 1):
+leaderboard_text += f"{i}. {username or 'Anonymous'}: ${balance}\n"
+bot.reply_to(message, leaderboard_text)
+
+@bot.message_handler(commands=['help'])
+def show_help(message):
+help_text = """
+Available commands:
+/spin - Spin the slot machine (costs $10)
+/balance - Check your current balance
+/leaderboard - View the top 10 players
+/help - Show this help message
+"""
+bot.reply_to(message, help_text)
+
+if name == "main":
+bot.polling(none_stop=True)
